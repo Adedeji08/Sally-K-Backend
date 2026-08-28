@@ -3,7 +3,7 @@ import { prisma } from "../../config/prisma.js";
 import { ApiError } from "../../utils/ApiError.js";
 import type { StoreSetupInput, VerificationInput } from "./seller.validation.js";
 
-const CATEGORY_MAP: Record<StoreSetupInput["category"], SellerCategory> = {
+const CATEGORY_MAP: Record<StoreSetupInput["categories"][number], SellerCategory> = {
   dresses: SellerCategory.DRESSES,
   tops: SellerCategory.TOPS,
   men: SellerCategory.MEN,
@@ -20,18 +20,26 @@ const ID_TYPE_MAP: Record<VerificationInput["idType"], IdType> = {
 };
 
 export async function setupStore(userId: string, input: StoreSetupInput) {
+  const categories = input.categories.map((category) => CATEGORY_MAP[category]);
+
   const profile = await prisma.sellerProfile.upsert({
     where: { userId },
     create: {
       userId,
       brandName: input.brandName,
-      category: CATEGORY_MAP[input.category],
+      categories,
       bio: input.bio,
+      logoUrl: input.logoUrl ?? null,
+      instagramUrl: input.instagramUrl ?? null,
+      facebookUrl: input.facebookUrl ?? null,
     },
     update: {
       brandName: input.brandName,
-      category: CATEGORY_MAP[input.category],
+      categories,
       bio: input.bio,
+      logoUrl: input.logoUrl ?? null,
+      instagramUrl: input.instagramUrl ?? null,
+      facebookUrl: input.facebookUrl ?? null,
     },
   });
 
@@ -48,9 +56,12 @@ export async function submitVerification(userId: string, input: VerificationInpu
   const updated = await prisma.sellerProfile.update({
     where: { userId },
     data: {
-      businessName: input.businessName,
       idType: ID_TYPE_MAP[input.idType],
       idNumber: input.idNumber,
+      idDocumentUrl: input.idDocumentUrl ?? null,
+      businessType: input.businessType ?? null,
+      businessRegistrationNumber: input.businessRegistrationNumber ?? null,
+      businessDocumentUrl: input.businessDocumentUrl ?? null,
       verificationStatus: "PENDING",
     },
   });

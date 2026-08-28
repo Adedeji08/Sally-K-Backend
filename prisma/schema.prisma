@@ -61,17 +61,45 @@ model SellerProfile {
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  brandName String
-  category  SellerCategory
-  bio       String
+  brandName    String
+  categories   SellerCategory[]
+  bio          String
+  logoUrl      String?
+  instagramUrl String?
+  facebookUrl  String?
 
-  verificationStatus VerificationStatus @default(UNVERIFIED)
-  businessName       String?
-  idType             IdType?
-  idNumber           String?
+  verificationStatus         VerificationStatus @default(UNVERIFIED)
+  idType                     IdType?
+  idNumber                   String?
+  idDocumentUrl              String?
+  businessType               String?
+  businessRegistrationNumber String?
+  businessDocumentUrl        String?
+
+  products Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("seller_profiles")
+}
+
+model Product {
+  id       String        @id @default(uuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String
+  price       Float
+  category    SellerCategory
+  images      String[]
+  sizes       String[]
+  stock       Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("products")
 }

@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Prisma } from "../../generated/prisma/client.js";
 import { ZodError } from "zod";
 import jwt from "jsonwebtoken";
+import { MulterError } from "multer";
 import { ApiError } from "../utils/ApiError.js";
 import { env } from "../config/env.js";
 
@@ -48,6 +49,11 @@ export function errorHandler(err: unknown, _req: Request, res: Response, _next: 
 
   if (err instanceof jwt.JsonWebTokenError) {
     return res.status(401).json({ status: false, message: "Invalid or malformed token" });
+  }
+
+  if (err instanceof MulterError) {
+    const message = err.code === "LIMIT_FILE_SIZE" ? "File is too large (max 10MB)" : err.message;
+    return res.status(400).json({ status: false, message });
   }
 
   console.error(err);
