@@ -41,6 +41,7 @@ model User {
   id                          String    @id @default(uuid())
   fullName                    String
   email                       String    @unique
+  phoneNumber                 String    @unique
   password                    String
   role                        Role
   resetPasswordToken          String?
@@ -95,6 +96,7 @@ model Product {
   category    SellerCategory
   images      String[]
   sizes       String[]
+  colors      String[]
   stock       Int      @default(0)
   isActive    Boolean  @default(true)
 

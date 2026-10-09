@@ -9,7 +9,7 @@ const router = Router();
 
 router.use(authenticate, authorize(Role.SELLER));
 
-router.post("/onboarding/store", validate(storeSetupSchema), setupStoreHandler);
+router.put("/profile", validate(storeSetupSchema), setupStoreHandler);
 router.post("/onboarding/verification", validate(verificationSchema), submitVerificationHandler);
 router.get("/onboarding/status", onboardingStatusHandler);
 

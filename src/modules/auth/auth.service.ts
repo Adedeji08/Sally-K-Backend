@@ -20,15 +20,32 @@ const ROLE_MAP: Record<SignupInput["role"], Role> = {
   seller: Role.SELLER,
 };
 
-function toAuthUser(user: { id: string; fullName: string; email: string; role: Role; emailVerified: boolean }) {
-  return { id: user.id, fullName: user.fullName, email: user.email, role: user.role, emailVerified: user.emailVerified };
+function toAuthUser(user: {
+  id: string;
+  fullName: string;
+  email: string;
+  phoneNumber: string;
+  role: Role;
+  emailVerified: boolean;
+}) {
+  return {
+    id: user.id,
+    fullName: user.fullName,
+    email: user.email,
+    phoneNumber: user.phoneNumber,
+    role: user.role,
+    emailVerified: user.emailVerified,
+  };
 }
 
 export async function signup(input: SignupInput) {
-  const existing = await prisma.user.findUnique({ where: { email: input.email } });
+  const existing = await prisma.user.findFirst({
+    where: { OR: [{ email: input.email }, { phoneNumber: input.phone_number }] },
+  });
 
   if (existing) {
-    throw ApiError.conflict("An account with this email already exists");
+    const conflictField = existing.email === input.email ? "email" : "phone number";
+    throw ApiError.conflict(`An account with this ${conflictField} already exists`);
   }
 
   const hashedPassword = await hashPassword(input.password);
@@ -38,6 +55,7 @@ export async function signup(input: SignupInput) {
     data: {
       fullName: input.full_name,
       email: input.email,
+      phoneNumber: input.phone_number,
       password: hashedPassword,
       role: ROLE_MAP[input.role],
       emailVerificationCode: hashedCode,

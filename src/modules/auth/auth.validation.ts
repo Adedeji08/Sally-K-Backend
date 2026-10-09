@@ -7,6 +7,11 @@ export const emailSchema = z
   .min(1, "Email is required")
   .email("Enter a valid email address");
 
+export const phoneSchema = z
+  .string({ error: "Phone number is required" })
+  .trim()
+  .regex(/^\+[1-9]\d{7,14}$/, "Enter a valid phone number with country code (e.g. +2348012345678)");
+
 export const passwordSchema = z
   .string({ error: "Password is required" })
   .min(8, "Password must be at least 8 characters")
@@ -25,6 +30,7 @@ export const signupSchema = z
       .max(100, "Full name must be at most 100 characters")
       .regex(/^[a-zA-Z\s.'-]+$/, "Full name contains invalid characters"),
     email: emailSchema,
+    phone_number: phoneSchema,
     password: passwordSchema,
     confirm_password: z.string({ error: "Please confirm your password" }),
     role: z.enum(["shopper", "seller"], { error: "Role must be either 'shopper' or 'seller'" }),

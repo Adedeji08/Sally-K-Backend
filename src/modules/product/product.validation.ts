@@ -25,6 +25,8 @@ const imagesSchema = z
 
 const sizesSchema = z.array(z.string().trim().min(1));
 
+const colorsSchema = z.array(z.string().trim().min(1));
+
 const stockSchema = z.coerce.number({ error: "Stock quantity is required" }).int().min(0, "Stock cannot be negative");
 
 export const createProductSchema = z.object({
@@ -34,6 +36,7 @@ export const createProductSchema = z.object({
   category: categorySchema,
   images: imagesSchema,
   sizes: sizesSchema.default([]),
+  colors: colorsSchema.default([]),
   stock: stockSchema,
 });
 
@@ -48,9 +51,47 @@ export const updateProductSchema = z.object({
   category: categorySchema.optional(),
   images: imagesSchema.optional(),
   sizes: sizesSchema.optional(),
+  colors: colorsSchema.optional(),
   stock: stockSchema.optional(),
   isActive: z.boolean().optional(),
 });
 
 export type CreateProductInput = z.infer<typeof createProductSchema>;
 export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+
+// Query params accept comma lists (?sizes=M,L) or repeated keys (?sizes=M&sizes=L).
+const listParam = z.preprocess((value) => {
+  if (value === undefined || value === "") return undefined;
+  const parts = (Array.isArray(value) ? value : [value]).flatMap((v) => String(v).split(","));
+  const cleaned = parts.map((v) => v.trim()).filter(Boolean);
+  return cleaned.length ? cleaned : undefined;
+}, z.array(z.string()).optional());
+
+const optionalNumber = z.preprocess(
+  (value) => (value === undefined || value === "" ? undefined : value),
+  z.coerce.number({ error: "Must be a number" }).min(0, "Must be 0 or more").optional()
+);
+
+export const productSortSchema = z.enum(["popular", "newest", "price_asc", "price_desc"]);
+
+export const listProductsQuerySchema = z
+  .object({
+    category: listParam.pipe(z.array(categorySchema).optional()),
+    search: z.string().trim().max(100).optional(),
+    minPrice: optionalNumber,
+    maxPrice: optionalNumber,
+    sizes: listParam,
+    sellers: listParam,
+    sort: productSortSchema.default("popular"),
+  })
+  .refine((q) => q.minPrice === undefined || q.maxPrice === undefined || q.minPrice <= q.maxPrice, {
+    message: "minPrice cannot be greater than maxPrice",
+    path: ["minPrice"],
+  });
+
+export const productFiltersQuerySchema = z.object({
+  category: listParam.pipe(z.array(categorySchema).optional()),
+});
+
+export type ListProductsQuery = z.infer<typeof listProductsQuerySchema>;
+export type ProductFiltersQuery = z.infer<typeof productFiltersQuerySchema>;
