@@ -2,6 +2,7 @@ import { SellerCategory, VerificationStatus } from "../../../generated/prisma/en
 import type { Prisma } from "../../../generated/prisma/client.js";
 import { prisma } from "../../config/prisma.js";
 import { ApiError } from "../../utils/ApiError.js";
+import { getProductRatingSummary } from "../review/review.service.js";
 import type {
   CreateProductInput,
   ListProductsQuery,
@@ -57,7 +58,10 @@ export async function listMyProducts(userId: string) {
 }
 
 export async function getMyProduct(userId: string, productId: string) {
-  return findOwnedProduct(userId, productId);
+  const product = await findOwnedProduct(userId, productId);
+  const rating = await getProductRatingSummary(productId);
+
+  return { ...product, rating };
 }
 
 async function findOwnedProduct(userId: string, productId: string) {
@@ -202,5 +206,7 @@ export async function getPublicProduct(productId: string) {
     throw ApiError.notFound("Product not found");
   }
 
-  return product;
+  const rating = await getProductRatingSummary(productId);
+
+  return { ...product, rating };
 }

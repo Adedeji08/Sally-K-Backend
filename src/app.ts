@@ -8,6 +8,8 @@ import authRoutes from "./modules/auth/auth.routes.js";
 import sellerRoutes from "./modules/seller/seller.routes.js";
 import productRoutes from "./modules/product/product.routes.js";
 import uploadRoutes from "./modules/upload/upload.routes.js";
+import reviewRoutes from "./modules/review/review.routes.js";
+import cartRoutes from "./modules/cart/cart.routes.js";
 
 export const app = express();
 
@@ -24,6 +26,8 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/sellers", sellerRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/cart", cartRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

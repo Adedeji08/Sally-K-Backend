@@ -53,6 +53,8 @@ model User {
   updatedAt                   DateTime  @updatedAt
 
   sellerProfile SellerProfile?
+  reviews       Review[]
+  cartItems     CartItem[]
 
   @@map("users")
 }
@@ -100,8 +102,46 @@ model Product {
   stock       Int      @default(0)
   isActive    Boolean  @default(true)
 
+  reviews   Review[]
+  cartItems CartItem[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("products")
+}
+
+model Review {
+  id        String  @id @default(uuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  rating  Int
+  comment String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId, userId])
+  @@map("reviews")
+}
+
+model CartItem {
+  id        String  @id @default(uuid())
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  size     String @default("")
+  color    String @default("")
+  quantity Int    @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, productId, size, color])
+  @@map("cart_items")
 }
