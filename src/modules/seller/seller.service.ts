@@ -32,6 +32,7 @@ export async function setupStore(userId: string, input: StoreSetupInput) {
       logoUrl: input.logoUrl ?? null,
       instagramUrl: input.instagramUrl ?? null,
       facebookUrl: input.facebookUrl ?? null,
+      address: input.address ?? null,
     },
     update: {
       brandName: input.brandName,
@@ -40,6 +41,8 @@ export async function setupStore(userId: string, input: StoreSetupInput) {
       logoUrl: input.logoUrl ?? null,
       instagramUrl: input.instagramUrl ?? null,
       facebookUrl: input.facebookUrl ?? null,
+      // Only overwrite when sent, so older clients/onboarding don't wipe it.
+      ...(input.address !== undefined && { address: input.address }),
     },
   });
 

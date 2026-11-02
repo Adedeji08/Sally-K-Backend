@@ -2,8 +2,26 @@ import { prisma } from "../../config/prisma.js";
 import { ApiError } from "../../utils/ApiError.js";
 import type { AddToCartInput, UpdateCartItemInput } from "./cart.validation.js";
 
+// Each line carries its seller's contact details — buyers arrange delivery
+// directly with the seller, so checkout shows who to expect a call from.
 const CART_PRODUCT_SELECT = {
-  product: { select: { name: true, price: true, images: true, stock: true, isActive: true } },
+  product: {
+    select: {
+      name: true,
+      price: true,
+      images: true,
+      stock: true,
+      isActive: true,
+      seller: {
+        select: {
+          id: true,
+          brandName: true,
+          address: true,
+          user: { select: { fullName: true, email: true, phoneNumber: true } },
+        },
+      },
+    },
+  },
 } as const;
 
 export async function addToCart(userId: string, input: AddToCartInput) {

@@ -10,6 +10,7 @@ import productRoutes from "./modules/product/product.routes.js";
 import uploadRoutes from "./modules/upload/upload.routes.js";
 import reviewRoutes from "./modules/review/review.routes.js";
 import cartRoutes from "./modules/cart/cart.routes.js";
+import orderRoutes from "./modules/order/order.routes.js";
 
 export const app = express();
 
@@ -28,6 +29,7 @@ app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/uploads", uploadRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/cart", cartRoutes);
+app.use("/api/v1/orders", orderRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
