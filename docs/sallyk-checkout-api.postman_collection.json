@@ -1,0 +1,375 @@
+{
+  "info": {
+    "name": "Sally-K API — Checkout (Cart, Orders, Payments)",
+    "description": "One consistent example story runs through this collection: buyer 'Order Test Buyer' adds 2x 'Order Test Sneaker' (₦15,000 each) to their cart from seller 'Order Test Store', pays via Paystack, and the seller marks the resulting order fulfilled. All sample IDs/values below are taken from real responses during backend testing — shapes are accurate, specific IDs will differ per request.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3900/api/v1" },
+    { "key": "buyerToken", "value": "" },
+    { "key": "sellerToken", "value": "" },
+    { "key": "productId", "value": "4ca93bfa-c258-445b-8712-c46daedad399" },
+    { "key": "cartItemId", "value": "181f3962-cd16-4f0b-b713-f5232ed5050d" },
+    { "key": "orderId", "value": "63732d97-f672-422b-a4af-79550697336d" },
+    { "key": "paymentReference", "value": "sallyk_3f9a2b1c7d4e4f5a8b6c9d0e1f2a3b4c" }
+  ],
+  "item": [
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "Add to cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/cart", "host": ["{{baseUrl}}"], "path": ["cart"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"size\": \"41\",\n  \"color\": \"white\",\n  \"quantity\": 2\n}"
+            },
+            "description": "Required `size`/`color` only if the product defines those options; must be one of the product's own values. Adding the same product+size+color again merges quantity into the existing line instead of duplicating it."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/cart" } },
+              "status": "Created",
+              "code": 201,
+              "header": [{ "key": "Content-Type", "value": "application/json" }],
+              "body": "{\n  \"status\": true,\n  \"message\": \"Added to cart\",\n  \"data\": {\n    \"id\": \"{{cartItemId}}\",\n    \"userId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n    \"productId\": \"{{productId}}\",\n    \"size\": \"41\",\n    \"color\": \"white\",\n    \"quantity\": 2,\n    \"createdAt\": \"2026-10-20T15:07:37.025Z\",\n    \"updatedAt\": \"2026-10-20T15:07:37.025Z\",\n    \"product\": {\n      \"name\": \"Order Test Sneaker\",\n      \"price\": 15000,\n      \"images\": [\"https://res.cloudinary.com/djvwhtgeq/image/upload/v1/sallyk/test/sneaker.jpg\"],\n      \"stock\": 5,\n      \"isActive\": true,\n      \"seller\": {\n        \"id\": \"a520189c-d1a9-448d-84da-9552e296c85a\",\n        \"brandName\": \"Order Test Store\",\n        \"address\": \"12 Test Lane, Lagos\",\n        \"user\": { \"fullName\": \"Test Seller\", \"email\": \"testseller.orders@example.com\", \"phoneNumber\": \"+2348022223344\" }\n      }\n    }\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — missing required size",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/cart" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Select a size for this product\" }"
+            },
+            {
+              "name": "400 Bad Request — exceeds stock",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/cart" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Only 4 left in stock\" }"
+            }
+          ]
+        },
+        {
+          "name": "View cart",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/cart", "host": ["{{baseUrl}}"], "path": ["cart"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/cart" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Cart fetched successfully\",\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"{{cartItemId}}\",\n        \"userId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n        \"productId\": \"{{productId}}\",\n        \"size\": \"41\",\n        \"color\": \"white\",\n        \"quantity\": 2,\n        \"createdAt\": \"2026-10-20T15:07:37.025Z\",\n        \"updatedAt\": \"2026-10-20T15:07:37.025Z\",\n        \"product\": {\n          \"name\": \"Order Test Sneaker\",\n          \"price\": 15000,\n          \"images\": [\"https://res.cloudinary.com/djvwhtgeq/image/upload/v1/sallyk/test/sneaker.jpg\"],\n          \"stock\": 5,\n          \"isActive\": true,\n          \"seller\": {\n            \"id\": \"a520189c-d1a9-448d-84da-9552e296c85a\",\n            \"brandName\": \"Order Test Store\",\n            \"address\": \"12 Test Lane, Lagos\",\n            \"user\": { \"fullName\": \"Test Seller\", \"email\": \"testseller.orders@example.com\", \"phoneNumber\": \"+2348022223344\" }\n          }\n        }\n      }\n    ],\n    \"subtotal\": 30000,\n    \"itemCount\": 2\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update item quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/cart/{{cartItemId}}", "host": ["{{baseUrl}}"], "path": ["cart", "{{cartItemId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"quantity\": 1\n}" }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/cart/{{cartItemId}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Cart item updated successfully\",\n  \"data\": {\n    \"id\": \"{{cartItemId}}\",\n    \"quantity\": 1,\n    \"userId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n    \"productId\": \"{{productId}}\",\n    \"size\": \"41\",\n    \"color\": \"white\",\n    \"product\": { \"name\": \"Order Test Sneaker\", \"price\": 15000, \"images\": [\"https://res.cloudinary.com/djvwhtgeq/image/upload/v1/sallyk/test/sneaker.jpg\"], \"stock\": 5, \"isActive\": true }\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — exceeds stock",
+              "originalRequest": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/cart/{{cartItemId}}" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Only 4 left in stock\" }"
+            }
+          ]
+        },
+        {
+          "name": "Remove item",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/cart/{{cartItemId}}", "host": ["{{baseUrl}}"], "path": ["cart", "{{cartItemId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/cart/{{cartItemId}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"status\": true, \"message\": \"Item removed from cart\", \"data\": null }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Get public config",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": { "raw": "{{baseUrl}}/payments/config", "host": ["{{baseUrl}}"], "path": ["payments", "config"] },
+            "description": "Public, no auth. Use this to get the Paystack publishable key instead of hardcoding it in the frontend."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/payments/config" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"status\": true, \"message\": \"Payment config fetched successfully\", \"data\": { \"publicKey\": \"pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\" } }"
+            }
+          ]
+        },
+        {
+          "name": "Initialize payment (start checkout)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/payments/initialize", "host": ["{{baseUrl}}"], "path": ["payments", "initialize"] },
+            "body": { "mode": "raw", "raw": "" },
+            "description": "No request body — prices and validates whatever is currently in the buyer's cart (same stock/active checks as cart add). Does NOT create any Order yet and does NOT touch stock/cart — that only happens once payment is verified as successful.\n\nUse `accessCode` to open Paystack's Inline.js popup (recommended — card + bank transfer channels, card data never touches our backend), or redirect the browser to `authorizationUrl` for the hosted checkout page. Both show the same two channels since the backend restricts `channels: [\"card\", \"bank_transfer\"]`."
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Payment initialized successfully\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"amount\": 30000,\n    \"authorizationUrl\": \"https://checkout.paystack.com/0peioxfhpn\",\n    \"accessCode\": \"0peioxfhpn\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — empty cart",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Your cart is empty\" }"
+            },
+            {
+              "name": "400 Bad Request — product no longer available",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"\\\"Order Test Sneaker\\\" is no longer available\" }"
+            }
+          ]
+        },
+        {
+          "name": "Verify payment (confirm + create orders)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/payments/verify/{{paymentReference}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["payments", "verify", "{{paymentReference}}"]
+            },
+            "description": "Call this right after Paystack redirects back / the Inline popup resolves, passing the same `reference` from Initialize. This is what actually confirms payment with Paystack server-to-server AND creates the Order(s) — one per seller in the cart — decrements stock, and clears the cart.\n\nIdempotent: calling it again for an already-paid reference just returns the same orders again, it will not double-charge or double-create."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/payments/verify/{{paymentReference}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Payment verified successfully\",\n  \"data\": {\n    \"payment\": {\n      \"id\": \"d4e5f6a7-8b9c-4d1e-9f2a-3b4c5d6e7f8a\",\n      \"buyerId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n      \"reference\": \"{{paymentReference}}\",\n      \"amount\": 30000,\n      \"status\": \"PAID\",\n      \"accessCode\": \"0peioxfhpn\",\n      \"authorizationUrl\": \"https://checkout.paystack.com/0peioxfhpn\",\n      \"paidAt\": \"2026-10-20T15:07:40.000Z\",\n      \"createdAt\": \"2026-10-20T15:07:37.000Z\",\n      \"updatedAt\": \"2026-10-20T15:07:40.000Z\"\n    },\n    \"orders\": [\n      {\n        \"id\": \"{{orderId}}\",\n        \"buyerId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n        \"sellerId\": \"a520189c-d1a9-448d-84da-9552e296c85a\",\n        \"paymentId\": \"d4e5f6a7-8b9c-4d1e-9f2a-3b4c5d6e7f8a\",\n        \"status\": \"PENDING\",\n        \"subtotal\": 30000,\n        \"createdAt\": \"2026-10-20T15:07:37.167Z\",\n        \"updatedAt\": \"2026-10-20T15:07:37.167Z\",\n        \"items\": [\n          {\n            \"id\": \"88136bc1-9e7e-4da1-81ee-7a775a4311f9\",\n            \"orderId\": \"{{orderId}}\",\n            \"productId\": \"{{productId}}\",\n            \"name\": \"Order Test Sneaker\",\n            \"image\": \"https://res.cloudinary.com/djvwhtgeq/image/upload/v1/sallyk/test/sneaker.jpg\",\n            \"price\": 15000,\n            \"size\": \"41\",\n            \"color\": \"white\",\n            \"quantity\": 2\n          }\n        ],\n        \"seller\": {\n          \"id\": \"a520189c-d1a9-448d-84da-9552e296c85a\",\n          \"brandName\": \"Order Test Store\",\n          \"logoUrl\": null,\n          \"address\": \"12 Test Lane, Lagos\"\n        }\n      }\n    ]\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — payment not successful",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/payments/verify/{{paymentReference}}" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Payment was not successful\" }"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/payments/verify/{{paymentReference}}" } },
+              "status": "Not Found",
+              "code": 404,
+              "body": "{ \"status\": false, \"message\": \"Payment not found\" }"
+            }
+          ]
+        },
+        {
+          "name": "Webhook (Paystack → backend only, FE does not call this)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-paystack-signature", "value": "<computed by Paystack, HMAC-SHA512 of the raw body with your secret key>" }
+            ],
+            "url": { "raw": "{{baseUrl}}/payments/webhook", "host": ["{{baseUrl}}"], "path": ["payments", "webhook"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"charge.success\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"amount\": 30000000000,\n    \"status\": \"success\"\n  }\n}"
+            },
+            "description": "Not something the frontend ever calls — Paystack calls this server-to-server when configured in the Paystack dashboard. Requires a public URL (e.g. ngrok) to reach localhost, so in local dev the Verify endpoint above is the one that actually drives the flow. Included here only so the shape is documented. Signature is verified against the raw request bytes; an invalid/missing signature gets 401."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/webhook" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{ \"received\": true }"
+            },
+            {
+              "name": "401 Unauthorized — bad signature",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/webhook" } },
+              "status": "Unauthorized",
+              "code": 401,
+              "body": "{ \"status\": false, \"message\": \"Invalid Paystack signature\" }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Buyer: list my orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders/mine?status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "mine"],
+              "query": [{ "key": "status", "value": "PENDING", "description": "optional: PENDING | FULFILLED | CANCELLED" }]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/mine" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Orders fetched successfully\",\n  \"data\": [\n    {\n      \"id\": \"{{orderId}}\",\n      \"buyerId\": \"47055818-663c-49f2-a2fb-1a1c08393a65\",\n      \"sellerId\": \"a520189c-d1a9-448d-84da-9552e296c85a\",\n      \"paymentId\": \"d4e5f6a7-8b9c-4d1e-9f2a-3b4c5d6e7f8a\",\n      \"status\": \"PENDING\",\n      \"subtotal\": 30000,\n      \"createdAt\": \"2026-10-20T15:07:37.167Z\",\n      \"updatedAt\": \"2026-10-20T15:07:37.167Z\",\n      \"items\": [\n        { \"id\": \"88136bc1-9e7e-4da1-81ee-7a775a4311f9\", \"name\": \"Order Test Sneaker\", \"image\": \"https://res.cloudinary.com/djvwhtgeq/image/upload/v1/sallyk/test/sneaker.jpg\", \"price\": 15000, \"size\": \"41\", \"color\": \"white\", \"quantity\": 2 }\n      ],\n      \"seller\": { \"id\": \"a520189c-d1a9-448d-84da-9552e296c85a\", \"brandName\": \"Order Test Store\", \"logoUrl\": null, \"address\": \"12 Test Lane, Lagos\" }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Buyer: get order by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/mine/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["orders", "mine", "{{orderId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/mine/{{orderId}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Order fetched successfully\",\n  \"data\": {\n    \"id\": \"{{orderId}}\",\n    \"status\": \"PENDING\",\n    \"subtotal\": 30000,\n    \"items\": [ { \"name\": \"Order Test Sneaker\", \"price\": 15000, \"size\": \"41\", \"color\": \"white\", \"quantity\": 2 } ],\n    \"seller\": { \"brandName\": \"Order Test Store\", \"address\": \"12 Test Lane, Lagos\" }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/mine/{{orderId}}" } },
+              "status": "Not Found",
+              "code": 404,
+              "body": "{ \"status\": false, \"message\": \"Order not found\" }"
+            }
+          ]
+        },
+        {
+          "name": "Seller: list received orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sellerToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/orders/received?status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["orders", "received"],
+              "query": [{ "key": "status", "value": "PENDING", "description": "optional: PENDING | FULFILLED | CANCELLED" }]
+            }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/received" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Orders fetched successfully\",\n  \"data\": [\n    {\n      \"id\": \"{{orderId}}\",\n      \"status\": \"PENDING\",\n      \"subtotal\": 30000,\n      \"items\": [ { \"name\": \"Order Test Sneaker\", \"price\": 15000, \"size\": \"41\", \"color\": \"white\", \"quantity\": 2 } ],\n      \"buyer\": { \"id\": \"47055818-663c-49f2-a2fb-1a1c08393a65\", \"fullName\": \"Order Test Buyer\", \"email\": \"orderbuyer.test@example.com\", \"phoneNumber\": \"+2348033334455\" }\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Seller: get received order by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{sellerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["orders", "received", "{{orderId}}"] }
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Order fetched successfully\",\n  \"data\": {\n    \"id\": \"{{orderId}}\",\n    \"status\": \"PENDING\",\n    \"subtotal\": 30000,\n    \"items\": [ { \"name\": \"Order Test Sneaker\", \"price\": 15000, \"size\": \"41\", \"color\": \"white\", \"quantity\": 2 } ],\n    \"buyer\": { \"id\": \"47055818-663c-49f2-a2fb-1a1c08393a65\", \"fullName\": \"Order Test Buyer\", \"email\": \"orderbuyer.test@example.com\", \"phoneNumber\": \"+2348033334455\" }\n  }\n}"
+            },
+            {
+              "name": "404 Not Found",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}" } },
+              "status": "Not Found",
+              "code": 404,
+              "body": "{ \"status\": false, \"message\": \"Order not found\" }"
+            }
+          ]
+        },
+        {
+          "name": "Seller: mark order fulfilled/cancelled",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{sellerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["orders", "received", "{{orderId}}"] },
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"FULFILLED\"\n}" },
+            "description": "status must be FULFILLED or CANCELLED. Only works while the order is still PENDING."
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Order updated successfully\",\n  \"data\": {\n    \"id\": \"{{orderId}}\",\n    \"status\": \"FULFILLED\",\n    \"subtotal\": 30000,\n    \"updatedAt\": \"2026-10-20T15:08:52.101Z\"\n  }\n}"
+            },
+            {
+              "name": "400 Bad Request — already processed",
+              "originalRequest": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"This order is already fulfilled\" }"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

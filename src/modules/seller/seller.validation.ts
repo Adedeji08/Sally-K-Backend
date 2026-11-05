@@ -21,6 +21,12 @@ export const storeSetupSchema = z.object({
   logoUrl: urlSchema.optional(),
   instagramUrl: urlSchema.optional(),
   facebookUrl: urlSchema.optional(),
+  address: z
+    .string()
+    .trim()
+    .min(5, "Address must be at least 5 characters")
+    .max(300, "Address must be at most 300 characters")
+    .optional(),
 });
 
 const idTypeSchema = z.enum(["nin", "bvn", "passport"], { error: "Select a valid ID type" });

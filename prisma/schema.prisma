@@ -37,6 +37,18 @@ enum VerificationStatus {
   REJECTED
 }
 
+enum OrderStatus {
+  PENDING
+  FULFILLED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 model User {
   id                          String    @id @default(uuid())
   fullName                    String
@@ -55,6 +67,8 @@ model User {
   sellerProfile SellerProfile?
   reviews       Review[]
   cartItems     CartItem[]
+  orders        Order[]
+  payments      Payment[]
 
   @@map("users")
 }
@@ -70,6 +84,9 @@ model SellerProfile {
   logoUrl      String?
   instagramUrl String?
   facebookUrl  String?
+  // Where the seller operates from — shown to buyers at checkout so they can
+  // arrange delivery directly with the seller.
+  address      String?
 
   verificationStatus         VerificationStatus @default(UNVERIFIED)
   idType                     IdType?
@@ -80,6 +97,7 @@ model SellerProfile {
   businessDocumentUrl        String?
 
   products Product[]
+  orders   Order[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -102,8 +120,9 @@ model Product {
   stock       Int      @default(0)
   isActive    Boolean  @default(true)
 
-  reviews   Review[]
-  cartItems CartItem[]
+  reviews    Review[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -144,4 +163,70 @@ model CartItem {
 
   @@unique([userId, productId, size, color])
   @@map("cart_items")
+}
+
+// One order per seller per checkout — a cart spanning multiple sellers splits
+// into one Order each, so each seller's dashboard only ever sees their own.
+// All orders from the same checkout share one Payment (one Paystack charge).
+model Order {
+  id       String        @id @default(uuid())
+  buyerId  String
+  buyer    User          @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  paymentId String?
+  payment   Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  status   OrderStatus @default(PENDING)
+  subtotal Float
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("orders")
+}
+
+// One Paystack transaction per checkout, covering every seller's order from
+// that cart. Orders are only created once this flips to PAID — see
+// order.service#createOrdersForPayment.
+model Payment {
+  id      String @id @default(uuid())
+  buyerId String
+  buyer   User   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+
+  reference        String        @unique
+  amount           Float
+  status           PaymentStatus @default(PENDING)
+  accessCode       String?
+  authorizationUrl String?
+  paidAt           DateTime?
+
+  orders Order[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("payments")
+}
+
+// Line items snapshot the product's name/image/price at order time so order
+// history stays accurate even if the product is later edited or deleted.
+model OrderItem {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  name     String
+  image    String?
+  price    Float
+  size     String
+  color    String
+  quantity Int
+
+  @@map("order_items")
 }

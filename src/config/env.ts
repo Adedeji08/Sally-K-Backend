@@ -16,6 +16,11 @@ const envSchema = z.object({
   CLOUDINARY_CLOUD_NAME: z.string().min(1, "CLOUDINARY_CLOUD_NAME is required"),
   CLOUDINARY_API_KEY: z.string().min(1, "CLOUDINARY_API_KEY is required"),
   CLOUDINARY_API_SECRET: z.string().min(1, "CLOUDINARY_API_SECRET is required"),
+  PAYSTACK_SECRET_KEY: z.string().min(1, "PAYSTACK_SECRET_KEY is required"),
+  PAYSTACK_PUBLIC_KEY: z.string().min(1, "PAYSTACK_PUBLIC_KEY is required"),
+  // Where Paystack redirects the browser after checkout; defaults to a route
+  // on the storefront if not overridden.
+  PAYSTACK_CALLBACK_URL: z.string().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
