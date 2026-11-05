@@ -18,11 +18,7 @@ async function requireSellerProfile(userId: string) {
   return sellerProfile;
 }
 
-// Checks out the buyer's entire cart: splits it by seller into one Order each
-// (so each seller's dashboard only ever sees their own orders), snapshots the
-// product details onto each line, decrements stock, and clears the cart —
-// all inside one transaction so a mid-checkout failure leaves nothing partial.
-export async function createOrdersFromCart(userId: string) {
+async function loadValidatedCart(userId: string) {
   const cartItems = await prisma.cartItem.findMany({
     where: { userId },
     include: { product: { select: { id: true, name: true, images: true, price: true, stock: true, isActive: true, sellerId: true } } },
@@ -41,6 +37,24 @@ export async function createOrdersFromCart(userId: string) {
     }
   }
 
+  return cartItems;
+}
+
+// Used to price a Paystack transaction before any order exists.
+export async function getCheckoutTotal(userId: string) {
+  const cartItems = await loadValidatedCart(userId);
+  return cartItems.reduce((sum, item) => sum + item.product.price * item.quantity, 0);
+}
+
+// Called once a Payment has been confirmed PAID: splits the cart by seller
+// into one Order each (so each seller's dashboard only ever sees their own
+// orders), snapshots the product details onto each line, decrements stock,
+// and clears the cart — all inside one transaction so a failure here leaves
+// nothing partial. Re-validates the cart since time has passed since the
+// Payment was initialized.
+export async function createOrdersForPayment(userId: string, paymentId: string) {
+  const cartItems = await loadValidatedCart(userId);
+
   const bySeller = new Map<string, typeof cartItems>();
   for (const item of cartItems) {
     const group = bySeller.get(item.product.sellerId) ?? [];
@@ -58,6 +72,7 @@ export async function createOrdersFromCart(userId: string) {
         data: {
           buyerId: userId,
           sellerId,
+          paymentId,
           subtotal,
           items: {
             create: items.map((item) => ({

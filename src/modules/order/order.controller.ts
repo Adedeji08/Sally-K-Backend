@@ -5,11 +5,6 @@ import * as orderService from "./order.service.js";
 import { listOrdersQuerySchema } from "./order.validation.js";
 import type { UpdateOrderStatusInput } from "./order.validation.js";
 
-export const checkoutHandler = asyncHandler(async (req: Request, res: Response) => {
-  const orders = await orderService.createOrdersFromCart(req.user!.sub);
-  sendSuccess(res, { statusCode: 201, message: "Order placed successfully", data: orders });
-});
-
 // Parsed here rather than via validate(): Express 5 makes req.query read-only.
 export const listMyOrdersHandler = asyncHandler(async (req: Request, res: Response) => {
   const query = listOrdersQuerySchema.parse(req.query);

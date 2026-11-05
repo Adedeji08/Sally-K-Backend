@@ -4,7 +4,6 @@ import { validate } from "../../middleware/validate.js";
 import { authenticate, authorize } from "../../middleware/auth.js";
 import { updateOrderStatusSchema } from "./order.validation.js";
 import {
-  checkoutHandler,
   getMyOrderHandler,
   getReceivedOrderHandler,
   listMyOrdersHandler,
@@ -16,8 +15,9 @@ const router = Router();
 
 router.use(authenticate);
 
-// Buyer-side: place an order from the current cart, view own orders.
-router.post("/", checkoutHandler);
+// Buyer-side: view own orders. Orders are created by paying via
+// POST /api/v1/payments/initialize + GET /api/v1/payments/verify/:reference,
+// not directly here — see the payment module.
 router.get("/mine", listMyOrdersHandler);
 router.get("/mine/:id", getMyOrderHandler);
 
