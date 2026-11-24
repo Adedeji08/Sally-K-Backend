@@ -4,6 +4,7 @@ import { ApiError } from "../../utils/ApiError.js";
 import { env } from "../../config/env.js";
 import * as paystack from "../../config/paystack.js";
 import * as orderService from "../order/order.service.js";
+import * as loyaltyService from "../loyalty/loyalty.service.js";
 
 const DEFAULT_CALLBACK_PATH = "/payment/callback";
 
@@ -16,14 +17,17 @@ function generateReference() {
   return `sallyk_${randomUUID().replace(/-/g, "")}`;
 }
 
-export async function initializePayment(userId: string, email: string) {
+export async function initializePayment(userId: string, email: string, pointsToRedeem: number) {
   const total = await orderService.getCheckoutTotal(userId);
+  const pointsDiscount = await loyaltyService.priceRedemption(userId, pointsToRedeem, total);
+  const payable = total - pointsDiscount;
+
   const reference = generateReference();
   const callbackUrl = env.PAYSTACK_CALLBACK_URL ?? `${env.CORS_ORIGIN}${DEFAULT_CALLBACK_PATH}`;
 
   const result = await paystack.initializeTransaction({
     email,
-    amountKobo: Math.round(total * 100),
+    amountKobo: Math.round(payable * 100),
     reference,
     callbackUrl,
   });
@@ -36,7 +40,9 @@ export async function initializePayment(userId: string, email: string) {
     data: {
       buyerId: userId,
       reference,
-      amount: total,
+      amount: payable,
+      pointsRedeemed: pointsToRedeem,
+      pointsDiscount,
       accessCode: result.data.access_code,
       authorizationUrl: result.data.authorization_url,
     },
@@ -45,6 +51,8 @@ export async function initializePayment(userId: string, email: string) {
   return {
     reference: payment.reference,
     amount: payment.amount,
+    pointsRedeemed: payment.pointsRedeemed,
+    pointsDiscount: payment.pointsDiscount,
     authorizationUrl: payment.authorizationUrl,
     accessCode: payment.accessCode,
   };
@@ -83,6 +91,10 @@ async function confirmPayment(reference: string) {
   });
 
   const orders = await orderService.createOrdersForPayment(payment.buyerId, payment.id);
+
+  if (payment.pointsRedeemed > 0) {
+    await loyaltyService.recordRedemption(payment.buyerId, payment.id, payment.pointsRedeemed, payment.pointsDiscount);
+  }
 
   return { payment: updated, orders };
 }

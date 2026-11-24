@@ -5,13 +5,15 @@ import { sendSuccess } from "../../utils/apiResponse.js";
 import { ApiError } from "../../utils/ApiError.js";
 import { env } from "../../config/env.js";
 import * as paymentService from "./payment.service.js";
+import type { InitializePaymentInput } from "./payment.validation.js";
 
 export const getPublicConfigHandler = asyncHandler(async (_req: Request, res: Response) => {
   sendSuccess(res, { message: "Payment config fetched successfully", data: paymentService.getPublicConfig() });
 });
 
 export const initializePaymentHandler = asyncHandler(async (req: Request, res: Response) => {
-  const result = await paymentService.initializePayment(req.user!.sub, req.user!.email);
+  const { pointsToRedeem } = req.body as InitializePaymentInput;
+  const result = await paymentService.initializePayment(req.user!.sub, req.user!.email, pointsToRedeem);
   sendSuccess(res, { statusCode: 201, message: "Payment initialized successfully", data: result });
 });
 

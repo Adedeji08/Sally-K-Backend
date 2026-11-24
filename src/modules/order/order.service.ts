@@ -1,5 +1,6 @@
 import { prisma } from "../../config/prisma.js";
 import { ApiError } from "../../utils/ApiError.js";
+import * as loyaltyService from "../loyalty/loyalty.service.js";
 import type { ListOrdersQuery, UpdateOrderStatusInput } from "./order.validation.js";
 
 const ORDER_INCLUDE = {
@@ -157,9 +158,18 @@ export async function updateOrderStatus(userId: string, orderId: string, input: 
     throw ApiError.badRequest(`This order is already ${order.status.toLowerCase()}`);
   }
 
-  return prisma.order.update({
+  const updated = await prisma.order.update({
     where: { id: orderId },
     data: { status: input.status },
     include: ORDER_INCLUDE,
   });
+
+  // Earning is gated on fulfillment, not payment, so a cancelled order never
+  // earns points in the first place — see the LoyaltyTransactionStatus
+  // comment in schema.prisma for why no reversal path is needed.
+  if (input.status === "FULFILLED") {
+    await loyaltyService.recordEarnedPoints(order.buyerId, order.id, order.subtotal);
+  }
+
+  return updated;
 }

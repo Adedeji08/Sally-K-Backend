@@ -12,6 +12,7 @@ import reviewRoutes from "./modules/review/review.routes.js";
 import cartRoutes from "./modules/cart/cart.routes.js";
 import orderRoutes from "./modules/order/order.routes.js";
 import paymentRoutes from "./modules/payment/payment.routes.js";
+import loyaltyRoutes from "./modules/loyalty/loyalty.routes.js";
 
 export const app = express();
 
@@ -38,6 +39,7 @@ app.use("/api/v1/reviews", reviewRoutes);
 app.use("/api/v1/cart", cartRoutes);
 app.use("/api/v1/orders", orderRoutes);
 app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/rewards", loyaltyRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

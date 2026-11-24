@@ -49,6 +49,21 @@ enum PaymentStatus {
   FAILED
 }
 
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+}
+
+// Orders only ever move PENDING -> FULFILLED or PENDING -> CANCELLED (see
+// order.service#updateOrderStatus), so an EARN entry is only ever created at
+// the fulfillment transition — there is no later cancellation to reverse it.
+// If that state machine changes (refunds, post-fulfillment cancellation),
+// this will need a REVERSED status too.
+enum LoyaltyTransactionStatus {
+  PENDING
+  ACTIVE
+}
+
 model User {
   id                          String    @id @default(uuid())
   fullName                    String
@@ -69,6 +84,7 @@ model User {
   cartItems     CartItem[]
   orders        Order[]
   payments      Payment[]
+  loyaltyTransactions LoyaltyTransaction[]
 
   @@map("users")
 }
@@ -181,7 +197,8 @@ model Order {
   status   OrderStatus @default(PENDING)
   subtotal Float
 
-  items OrderItem[]
+  items               OrderItem[]
+  loyaltyTransactions LoyaltyTransaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -203,6 +220,13 @@ model Payment {
   accessCode       String?
   authorizationUrl String?
   paidAt           DateTime?
+
+  // Loyalty points applied as a discount on this checkout (amount above is
+  // already net of pointsDiscount — it's what Paystack actually charged).
+  // Snapshotted here rather than recomputed at verify-time so a mid-flight
+  // change to the redemption rate can't create a mismatch.
+  pointsRedeemed Int   @default(0)
+  pointsDiscount Float @default(0)
 
   orders Order[]
 
@@ -229,4 +253,32 @@ model OrderItem {
   quantity Int
 
   @@map("order_items")
+}
+
+// Append-only ledger — balances are always computed by summing this table,
+// never stored denormalized, so there's nothing to drift out of sync.
+model LoyaltyTransaction {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Set for EARN rows (the order that earned them); null for REDEEM rows,
+  // which pay for a *future* order via Payment.pointsRedeemed instead.
+  orderId String?
+  order   Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  type   LoyaltyTransactionType
+  status LoyaltyTransactionStatus @default(ACTIVE)
+  // Signed: positive for EARN, negative for REDEEM. Only ACTIVE rows count
+  // toward a user's spendable balance.
+  points Int
+
+  description String
+  // EARN rows only: when a PENDING row should flip to ACTIVE.
+  availableAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("loyalty_transactions")
 }

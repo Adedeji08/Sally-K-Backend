@@ -1,7 +1,7 @@
 {
   "info": {
-    "name": "Sally-K API — Checkout (Cart, Orders, Payments)",
-    "description": "One consistent example story runs through this collection: buyer 'Order Test Buyer' adds 2x 'Order Test Sneaker' (₦15,000 each) to their cart from seller 'Order Test Store', pays via Paystack, and the seller marks the resulting order fulfilled. All sample IDs/values below are taken from real responses during backend testing — shapes are accurate, specific IDs will differ per request.",
+    "name": "Sally-K API — Checkout (Cart, Orders, Payments, Rewards)",
+    "description": "One consistent example story runs through the Cart/Payments/Orders folders: buyer 'Order Test Buyer' adds 2x 'Order Test Sneaker' (₦15,000 each) to their cart from seller 'Order Test Store', pays via Paystack, and the seller marks the resulting order fulfilled. The Rewards folder follows a separate but equally real story: a ₦20,000 order earns 200,000 points (10 pts/₦1), which sit PENDING for 7 days, then become ACTIVE once the hold passes — at which point redeeming them is still blocked today because the monthly redemption cap is based on *last month's* real fulfilled GMV, which is ₦0 pre-revenue. All sample values below are taken from real responses during backend testing — shapes are accurate, specific IDs will differ per request.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -146,18 +146,29 @@
           "name": "Initialize payment (start checkout)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{buyerToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
             "url": { "raw": "{{baseUrl}}/payments/initialize", "host": ["{{baseUrl}}"], "path": ["payments", "initialize"] },
-            "body": { "mode": "raw", "raw": "" },
-            "description": "No request body — prices and validates whatever is currently in the buyer's cart (same stock/active checks as cart add). Does NOT create any Order yet and does NOT touch stock/cart — that only happens once payment is verified as successful.\n\nUse `accessCode` to open Paystack's Inline.js popup (recommended — card + bank transfer channels, card data never touches our backend), or redirect the browser to `authorizationUrl` for the hosted checkout page. Both show the same two channels since the backend restricts `channels: [\"card\", \"bank_transfer\"]`."
+            "body": { "mode": "raw", "raw": "{\n  \"pointsToRedeem\": 0\n}" },
+            "description": "`pointsToRedeem` is optional, defaults to 0 — omit the body entirely (or send `{}`) for a normal checkout with no points applied.\n\nPrices and validates whatever is currently in the buyer's cart (same stock/active checks as cart add), then — if `pointsToRedeem > 0` — validates the redemption (see loyalty rules below) and subtracts the resulting ₦ discount from the amount actually charged to Paystack. Does NOT create any Order or deduct points yet, and does NOT touch stock/cart — that, and recording the points spend, only happens once payment is verified as successful (see Verify below).\n\nRedemption rules, enforced in this order (see `GET /rewards` → `redemption` for the live numbers):\n1. `pointsToRedeem` must be 0, or at least the account minimum (1,000 by default).\n2. Can't exceed the buyer's available (ACTIVE) point balance.\n3. The ₦ value of the points can't exceed a fixed % of this order's subtotal (10% by default) — sellers are never shorted their full order value.\n4. The total ₦ value of points redeemed by *everyone* this calendar month can't exceed a small % of *last month's* total fulfilled-order GMV (1% by default). In a month with no prior fulfilled GMV, this is 0 — redemption is unavailable until there's a track record of real sales. This is deliberate, not a bug.\n\nUse `accessCode` to open Paystack's Inline.js popup (recommended — card + bank transfer channels, card data never touches our backend), or redirect the browser to `authorizationUrl` for the hosted checkout page. Both show the same two channels since the backend restricts `channels: [\"card\", \"bank_transfer\"]`."
           },
           "response": [
             {
-              "name": "201 Created",
+              "name": "201 Created — no points redeemed",
               "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
               "status": "Created",
               "code": 201,
-              "body": "{\n  \"status\": true,\n  \"message\": \"Payment initialized successfully\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"amount\": 30000,\n    \"authorizationUrl\": \"https://checkout.paystack.com/0peioxfhpn\",\n    \"accessCode\": \"0peioxfhpn\"\n  }\n}"
+              "body": "{\n  \"status\": true,\n  \"message\": \"Payment initialized successfully\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"amount\": 30000,\n    \"pointsRedeemed\": 0,\n    \"pointsDiscount\": 0,\n    \"authorizationUrl\": \"https://checkout.paystack.com/0peioxfhpn\",\n    \"accessCode\": \"0peioxfhpn\"\n  }\n}"
+            },
+            {
+              "name": "201 Created — with points redeemed",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Created",
+              "code": 201,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Payment initialized successfully\",\n  \"data\": {\n    \"reference\": \"{{paymentReference}}\",\n    \"amount\": 29980,\n    \"pointsRedeemed\": 10000,\n    \"pointsDiscount\": 20,\n    \"authorizationUrl\": \"https://checkout.paystack.com/0peioxfhpn\",\n    \"accessCode\": \"0peioxfhpn\"\n  }\n}",
+              "_comment": "amount is what Paystack actually charges (order total minus pointsDiscount). Illustrative — see the note below on why redemption is 0-capped pre-revenue."
             },
             {
               "name": "400 Bad Request — empty cart",
@@ -172,6 +183,36 @@
               "status": "Bad Request",
               "code": 400,
               "body": "{ \"status\": false, \"message\": \"\\\"Order Test Sneaker\\\" is no longer available\" }"
+            },
+            {
+              "name": "400 Bad Request — below minimum redemption",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"You need at least 1000 points to redeem\" }"
+            },
+            {
+              "name": "400 Bad Request — insufficient points balance",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"You only have 0 points available\" }",
+              "_comment": "Real response from testing: a brand-new buyer with no order history has 0 available points."
+            },
+            {
+              "name": "400 Bad Request — exceeds 10% of this order",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Points can cover at most 10% of this order (₦2000.00)\" }"
+            },
+            {
+              "name": "400 Bad Request — monthly redemption cap reached",
+              "originalRequest": { "method": "POST", "url": { "raw": "{{baseUrl}}/payments/initialize" } },
+              "status": "Bad Request",
+              "code": 400,
+              "body": "{ \"status\": false, \"message\": \"Points redemption has hit this month's limit — please try again next month or pay the full amount\" }",
+              "_comment": "Real response from testing: with ₦0 fulfilled GMV last month, this cap is 0, so ANY redemption attempt is rejected right now — expected pre-revenue behavior, not a bug."
             }
           ]
         },
@@ -185,7 +226,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["payments", "verify", "{{paymentReference}}"]
             },
-            "description": "Call this right after Paystack redirects back / the Inline popup resolves, passing the same `reference` from Initialize. This is what actually confirms payment with Paystack server-to-server AND creates the Order(s) — one per seller in the cart — decrements stock, and clears the cart.\n\nIdempotent: calling it again for an already-paid reference just returns the same orders again, it will not double-charge or double-create."
+            "description": "Call this right after Paystack redirects back / the Inline popup resolves, passing the same `reference` from Initialize. This is what actually confirms payment with Paystack server-to-server AND creates the Order(s) — one per seller in the cart — decrements stock, clears the cart, and (if this checkout redeemed points) records the points spend against the buyer's balance.\n\nIdempotent: calling it again for an already-paid reference just returns the same orders again, it will not double-charge, double-create, or double-deduct points."
           },
           "response": [
             {
@@ -350,7 +391,7 @@
             ],
             "url": { "raw": "{{baseUrl}}/orders/received/{{orderId}}", "host": ["{{baseUrl}}"], "path": ["orders", "received", "{{orderId}}"] },
             "body": { "mode": "raw", "raw": "{\n  \"status\": \"FULFILLED\"\n}" },
-            "description": "status must be FULFILLED or CANCELLED. Only works while the order is still PENDING."
+            "description": "status must be FULFILLED or CANCELLED. Only works while the order is still PENDING.\n\nMarking FULFILLED also credits the buyer 10 points per ₦1 of the order's subtotal (see the Rewards folder) — those points sit PENDING for 7 days before they're spendable, then become ACTIVE automatically. There's no separate request for this; it's a side effect of this one."
           },
           "response": [
             {
@@ -366,6 +407,54 @@
               "status": "Bad Request",
               "code": 400,
               "body": "{ \"status\": false, \"message\": \"This order is already fulfilled\" }"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Rewards",
+      "item": [
+        {
+          "name": "Get my rewards",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{buyerToken}}" }],
+            "url": { "raw": "{{baseUrl}}/rewards", "host": ["{{baseUrl}}"], "path": ["rewards"] },
+            "description": "Everything the Rewards screen needs in one call: tier, progress to the next tier, pending vs. spendable points, the live redemption settings (so the FE never hardcodes the rate/min/max), and a history feed.\n\nTier is based on fulfilled orders in the trailing 12 months, not lifetime spend — it can go back down if a buyer goes quiet for a year (same mechanism airlines use for status). `points.pending` are earned-but-not-yet-spendable (still inside the 7-day hold after the order was marked fulfilled); `points.available` is what can actually be redeemed right now. `history` entries are typed `EARN`/`REDEEM` with a `status` of `PENDING`/`ACTIVE` (an EARN row flips from PENDING to ACTIVE automatically once its hold passes — this response doesn't change shape, just that one field, between the two example states below)."
+          },
+          "response": [
+            {
+              "name": "200 OK — brand new buyer, no history",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/rewards" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Rewards fetched successfully\",\n  \"data\": {\n    \"tier\": \"BRONZE\",\n    \"ordersLast12Months\": 0,\n    \"nextTier\": { \"tier\": \"SILVER\", \"ordersNeeded\": 5 },\n    \"points\": { \"available\": 0, \"pending\": 0 },\n    \"redemption\": { \"ratePerPoint\": 0.002, \"minPoints\": 1000, \"maxPercentOfOrder\": 0.1 },\n    \"history\": []\n  }\n}",
+              "_comment": "Real response from testing, for a freshly signed-up buyer with zero orders."
+            },
+            {
+              "name": "200 OK — just earned points, still in the 7-day hold",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/rewards" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Rewards fetched successfully\",\n  \"data\": {\n    \"tier\": \"BRONZE\",\n    \"ordersLast12Months\": 1,\n    \"nextTier\": { \"tier\": \"SILVER\", \"ordersNeeded\": 4 },\n    \"points\": { \"available\": 0, \"pending\": 200000 },\n    \"redemption\": { \"ratePerPoint\": 0.002, \"minPoints\": 1000, \"maxPercentOfOrder\": 0.1 },\n    \"history\": [\n      {\n        \"id\": \"015e1ee4-f907-4591-a05f-3678dbcd3d26\",\n        \"type\": \"EARN\",\n        \"status\": \"PENDING\",\n        \"points\": 200000,\n        \"description\": \"Earned from order\",\n        \"orderId\": \"73c0fb9b-d488-4c0e-a4b7-8840afdcce1d\",\n        \"availableAt\": \"2026-11-13T11:30:18.947Z\",\n        \"createdAt\": \"2026-11-06T11:30:18.950Z\"\n      }\n    ]\n  }\n}",
+              "_comment": "Real response from testing: a ₦20,000 order marked fulfilled earns 200,000 points (10/₦1) at 'Earn' rate, sitting PENDING until availableAt (fulfilled time + 7 days)."
+            },
+            {
+              "name": "200 OK — hold passed, points now spendable",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/rewards" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Rewards fetched successfully\",\n  \"data\": {\n    \"tier\": \"BRONZE\",\n    \"ordersLast12Months\": 1,\n    \"nextTier\": { \"tier\": \"SILVER\", \"ordersNeeded\": 4 },\n    \"points\": { \"available\": 200000, \"pending\": 0 },\n    \"redemption\": { \"ratePerPoint\": 0.002, \"minPoints\": 1000, \"maxPercentOfOrder\": 0.1 },\n    \"history\": [\n      {\n        \"id\": \"015e1ee4-f907-4591-a05f-3678dbcd3d26\",\n        \"type\": \"EARN\",\n        \"status\": \"ACTIVE\",\n        \"points\": 200000,\n        \"description\": \"Earned from order\",\n        \"orderId\": \"73c0fb9b-d488-4c0e-a4b7-8840afdcce1d\",\n        \"availableAt\": \"2026-11-06T11:30:17.981Z\",\n        \"createdAt\": \"2026-11-06T11:30:18.950Z\"\n      }\n    ]\n  }\n}",
+              "_comment": "Real response from testing: same row, same id — only `status` flipped PENDING -> ACTIVE once the hourly sweep job passed its availableAt time, and the balance moved from pending to available accordingly."
+            },
+            {
+              "name": "200 OK — after a redemption",
+              "originalRequest": { "method": "GET", "url": { "raw": "{{baseUrl}}/rewards" } },
+              "status": "OK",
+              "code": 200,
+              "body": "{\n  \"status\": true,\n  \"message\": \"Rewards fetched successfully\",\n  \"data\": {\n    \"tier\": \"BRONZE\",\n    \"ordersLast12Months\": 1,\n    \"nextTier\": { \"tier\": \"SILVER\", \"ordersNeeded\": 4 },\n    \"points\": { \"available\": 190000, \"pending\": 0 },\n    \"redemption\": { \"ratePerPoint\": 0.002, \"minPoints\": 1000, \"maxPercentOfOrder\": 0.1 },\n    \"history\": [\n      {\n        \"id\": \"b2c3d4e5-6f78-49a0-8b1c-2d3e4f5a6b7c\",\n        \"type\": \"REDEEM\",\n        \"status\": \"ACTIVE\",\n        \"points\": -10000,\n        \"description\": \"Redeemed for ₦20.00 off an order\",\n        \"orderId\": null,\n        \"availableAt\": null,\n        \"createdAt\": \"2026-12-01T09:00:00.000Z\"\n      },\n      {\n        \"id\": \"015e1ee4-f907-4591-a05f-3678dbcd3d26\",\n        \"type\": \"EARN\",\n        \"status\": \"ACTIVE\",\n        \"points\": 200000,\n        \"description\": \"Earned from order\",\n        \"orderId\": \"73c0fb9b-d488-4c0e-a4b7-8840afdcce1d\",\n        \"availableAt\": \"2026-11-06T11:30:17.981Z\",\n        \"createdAt\": \"2026-11-06T11:30:18.950Z\"\n      }\n    ]\n  }\n}",
+              "_comment": "Illustrative, not from a live redemption (the monthly cap blocks redemption today — see Payments > Initialize). Shows the shape once the business has enough fulfilled GMV for the cap to allow it: a REDEEM row has orderId null (it pays for a future order's Payment, not a past order) and negative points."
             }
           ]
         }
