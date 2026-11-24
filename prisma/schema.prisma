@@ -114,6 +114,8 @@ model SellerProfile {
 
   products Product[]
   orders   Order[]
+  clients      MeasurementClient[]
+  measurements Measurement[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -281,4 +283,67 @@ model LoyaltyTransaction {
   updatedAt DateTime @updatedAt
 
   @@map("loyalty_transactions")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MeasurementUnit {
+  INCH
+  CM
+}
+
+enum FitPreference {
+  SLIM
+  REGULAR
+  LOOSE
+}
+
+// A designer's own client book — people they take measurements for. Not
+// linked to buyer accounts: most tailoring clients never sign up.
+model MeasurementClient {
+  id       String        @id @default(uuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  name   String
+  phone  String?
+  gender Gender
+  notes  String?
+
+  measurements Measurement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@map("measurement_clients")
+}
+
+// One measuring session for one outfit. `values` maps template field keys
+// (see measurement.templates.ts) to numbers in `unit` — stored as JSON so new
+// garments/fields don't need a migration.
+model Measurement {
+  id       String            @id @default(uuid())
+  sellerId String
+  seller   SellerProfile     @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  clientId String
+  client   MeasurementClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  garmentType String
+  unit        MeasurementUnit @default(INCH)
+  fit         FitPreference   @default(REGULAR)
+  values      Json
+  occasion    String?
+  dueDate     DateTime?
+  notes       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
+  @@index([clientId])
+  @@map("measurements")
 }
